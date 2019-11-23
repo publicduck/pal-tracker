@@ -16,14 +16,14 @@ public class TimeEntryController {
     @Autowired
     private TimeEntryRepository timeEntryRepository;
 
-    private Counter actionCounter;
+    private final Counter actionCounter;
     private final DistributionSummary timeEntrySummary;
 
 
     public TimeEntryController(TimeEntryRepository timeEntryRepository, MeterRegistry meterRegistry) {
         this.timeEntryRepository = timeEntryRepository;
         timeEntrySummary = meterRegistry.summary("timeEntry.summary");
-        this.actionCounter = meterRegistry.counter("eventHandler");
+        this.actionCounter = meterRegistry.counter("timeEntry.actionCounter");
     }
 
     @PostMapping("/time-entries")
@@ -32,8 +32,9 @@ public class TimeEntryController {
         TimeEntry timeEntry = timeEntryRepository.create(timeEntryToCreate);
 
         ResponseEntity response = new ResponseEntity(timeEntry, HttpStatus.CREATED);
-        timeEntrySummary.record(timeEntryRepository.list().size());
+
         actionCounter.increment();
+        timeEntrySummary.record(timeEntryRepository.list().size());
 
         return response;
     }
