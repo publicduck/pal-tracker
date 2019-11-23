@@ -1,5 +1,8 @@
 package io.pivotal.pal.tracker;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,8 +16,14 @@ public class TimeEntryController {
     @Autowired
     private TimeEntryRepository timeEntryRepository;
 
-    public TimeEntryController(TimeEntryRepository timeEntryRepository) {
+    private Counter actionCounter;
+    private final DistributionSummary timeEntrySummary;
+
+
+    public TimeEntryController(TimeEntryRepository timeEntryRepository, MeterRegistry meterRegistry) {
         this.timeEntryRepository = timeEntryRepository;
+        timeEntrySummary = meterRegistry.summary("timeEntry.summary");
+        this.actionCounter = meterRegistry.counter("eventHandler");
     }
 
     @PostMapping("/time-entries")
@@ -23,6 +32,8 @@ public class TimeEntryController {
         TimeEntry timeEntry = timeEntryRepository.create(timeEntryToCreate);
 
         ResponseEntity response = new ResponseEntity(timeEntry, HttpStatus.CREATED);
+        timeEntrySummary.record(timeEntryRepository.list().size());
+        actionCounter.increment();
 
         return response;
     }
@@ -33,6 +44,7 @@ public class TimeEntryController {
         ResponseEntity<TimeEntry> responseEntity;
         if (timeEntry != null) {
             responseEntity = new ResponseEntity<>(timeEntry, HttpStatus.OK);
+            actionCounter.increment();
         } else {
             responseEntity = new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
@@ -44,6 +56,7 @@ public class TimeEntryController {
 
         List<TimeEntry> list = timeEntryRepository.list();
         ResponseEntity<List<TimeEntry>> listResponseEntity = new ResponseEntity<List<TimeEntry>>(list, HttpStatus.OK);
+        actionCounter.increment();
         return listResponseEntity;
     }
 
@@ -54,6 +67,7 @@ public class TimeEntryController {
         ResponseEntity<TimeEntry> responseEntity;
         if (timeEntry != null) {
             responseEntity = new ResponseEntity<>(timeEntry, HttpStatus.OK);
+            actionCounter.increment();
         } else {
             responseEntity = new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
@@ -67,6 +81,8 @@ public class TimeEntryController {
 
         timeEntryRepository.delete(timeEntryId);
         ResponseEntity response = new ResponseEntity(HttpStatus.NO_CONTENT);
+        actionCounter.increment();
+        timeEntrySummary.record(timeEntryRepository.list().size());
         return response;
     }
 }
